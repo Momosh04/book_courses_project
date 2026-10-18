@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: webe-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: webe
+    ports:
+      - "5432:5432"
+    volumes:
+      - webe_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  webe_postgres_data:

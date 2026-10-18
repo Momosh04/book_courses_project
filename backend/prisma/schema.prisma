@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  bookings     Booking[]
+}
+
+model Event {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  createdById String
+  capacity    Int
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  seats       Seat[]
+  bookings    Booking[]
+
+  @@index([startsAt])
+}
+
+model Seat {
+  id         String   @id @default(uuid())
+  eventId    String
+  seatNumber Int
+  isBooked   Boolean  @default(false)
+  version    Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookings   Booking[]
+
+  @@unique([eventId, seatNumber])
+  @@index([eventId, isBooked])
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+  userId        String
+  eventId       String
+  seatId        String
+  status        BookingStatus @default(PENDING_PAYMENT)
+  idempotencyKey String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  seat          Seat          @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  payments      PaymentAttempt[]
+
+  @@index([userId, createdAt])
+  @@index([eventId, createdAt])
+  @@index([seatId])
+  @@unique([idempotencyKey])
+}
+
+model PaymentAttempt {
+  id          String        @id @default(uuid())
+  bookingId   String
+  amountCents Int
+  status      PaymentStatus @default(PENDING)
+  note        String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  actorUserId   String?
+  action        String
+  entityType    String
+  entityId      String
+  requestId     String
+  metadataJson  String?
+  createdAt     DateTime @default(now())
+
+  @@index([requestId])
+  @@index([entityType, entityId])
+}
